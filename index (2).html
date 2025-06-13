@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penerjemah Bahasa Isyarat BISINDO</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@roboflowai/roboflow-js@0.1.2/dist/roboflow-0.1.2.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .video-section {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .results-section {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .prediction-box, .word-builder {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title i {
+            font-size: 1.8rem;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 75%; /* 4:3 aspect ratio */
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror the video */
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #stopBtn {
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+        }
+        
+        #resetBtn {
+            background: linear-gradient(to right, #8e2de2, #4a00e0);
+        }
+        
+        .prediction-result {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+        }
+        
+        .letter {
+            font-size: 8rem;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
+            margin-bottom: 10px;
+        }
+        
+        .confidence {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .word-display {
+            font-size: 3rem;
+            text-align: center;
+            min-height: 80px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow-wrap: break-word;
+        }
+        
+        .word-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .word-controls button {
+            min-width: auto;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .instructions {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .instructions h2 {
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+        }
+        
+        .steps {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 250px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(to right, #4facfe, #00f2fe);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .word-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .word-controls button:last-child {
+                grid-column: span 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Penerjemah Bahasa Isyarat BISINDO</h1>
+            <p class="subtitle">Aplikasi real-time untuk menerjemahkan bahasa isyarat alfabet BISINDO menjadi teks menggunakan teknologi AI</p>
+        </header>
+        
+        <div class="content">
+            <div class="video-section">
+                <h2 class="section-title">
+                    <i>📷</i> Kamera
+                </h2>
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                </div>
+                <div class="controls">
+                    <button id="startBtn">Mulai Kamera</button>
+                    <button id="detectBtn" disabled>Mulai Deteksi</button>
+                    <button id="stopBtn" disabled>Hentikan</button>
+                </div>
+            </div>
+            
+            <div class="results-section">
+                <div class="prediction-box">
+                    <h2 class="section-title">
+                        <i>🔍</i> Hasil Deteksi
+                    </h2>
+                    <div class="prediction-result">
+                        <div class="letter" id="predictedLetter">-</div>
+                        <div class="confidence" id="confidence">Tunggu deteksi...</div>
+                    </div>
+                </div>
+                
+                <div class="word-builder">
+                    <h2 class="section-title">
+                        <i>✍️</i> Kata yang Dibentuk
+                    </h2>
+                    <div class="word-display" id="wordDisplay"></div>
+                    <div class="word-controls">
+                        <button id="addBtn" disabled>Tambahkan Huruf</button>
+                        <button id="spaceBtn">Spasi</button>
+                        <button id="delBtn">Hapus</button>
+                        <button id="resetBtn">Reset Kata</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status" id="status">
+            <p>Silakan klik "Mulai Kamera" untuk memulai</p>
+        </div>
+        
+        <div class="instructions">
+            <h2><i>ℹ️</i> Cara Menggunakan</h2>
+            <div class="steps">
+                <div class="step">
+                    <span class="step-number">1</span> Klik "Mulai Kamera" dan izinkan akses ke kamera
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span> Setelah kamera aktif, klik "Mulai Deteksi"
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span> Tunjukkan bahasa isyarat alfabet BISINDO di depan kamera
+                </div>
+                <div class="step">
+                    <span class="step-number">4</span> Ketika huruf terdeteksi, klik "Tambahkan Huruf" untuk menambahkannya ke kata
+                </div>
+                <div class="step">
+                    <span class="step-number">5</span> Gunakan tombol Spasi/Hapus/Reset untuk mengelola kata yang dibentuk
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Aplikasi Penerjemah Bahasa Isyarat BISINDO &copy; 2023 | Menggunakan model AI dari Roboflow</p>
+        </footer>
+    </div>
+
+    <script>
+        // Elemen DOM
+        const video = document.getElementById('video');
+        const startBtn = document.getElementById('startBtn');
+        const detectBtn = document.getElementById('detectBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const addBtn = document.getElementById('addBtn');
+        const spaceBtn = document.getElementById('spaceBtn');
+        const delBtn = document.getElementById('delBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const predictedLetter = document.getElementById('predictedLetter');
+        const confidence = document.getElementById('confidence');
+        const wordDisplay = document.getElementById('wordDisplay');
+        const statusDiv = document.getElementById('status');
+        
+        // Variabel global
+        let stream = null;
+        let model = null;
+        let detectionInterval = null;
+        let currentWord = '';
+        let lastDetection = null;
+        
+        // Inisialisasi Roboflow
+        async function initializeModel() {
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Memuat model AI...</div>';
+            
+            try {
+                // Ganti dengan publishable key Anda dari Roboflow
+                const publishableKey = "rf_uO2Vrih134XXsdwZEmUWBXMsfyn1";
+                
+                roboflow.auth({
+                    publishable_key: publishableKey
+                });
+                
+                model = await roboflow.models.load({
+                    model: "alfabet-bisindo-vr1x3",
+                    version: 2
+                });
+                
+                statusDiv.innerHTML = '<p>Model AI berhasil dimuat! Silakan mulai kamera.</p>';
+                console.log("Model loaded successfully");
+            } catch (error) {
+                console.error("Error loading model:", error);
+                statusDiv.innerHTML = `<p class="error">Gagal memuat model: ${error.message}</p>`;
+            }
+        }
+        
+        // Memulai kamera
+        async function startCamera() {
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Mengakses kamera...</div>';
+            
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }, 
+                    audio: false 
+                });
+                
+                video.srcObject = stream;
+                statusDiv.innerHTML = '<p>Kamera berhasil diaktifkan! Klik "Mulai Deteksi" untuk memulai.</p>';
+                
+                startBtn.disabled = true;
+                detectBtn.disabled = false;
+                stopBtn.disabled = false;
+            } catch (error) {
+                console.error("Error accessing camera:", error);
+                statusDiv.innerHTML = `<p class="error">Gagal mengakses kamera: ${error.message}</p>`;
+            }
+        }
+        
+        // Memulai deteksi
+        function startDetection() {
+            if (!model) {
+                statusDiv.innerHTML = '<p class="error">Model belum dimuat. Silakan tunggu atau muat ulang halaman.</p>';
+                return;
+            }
+            
+            detectBtn.disabled = true;
+            addBtn.disabled = false;
+            statusDiv.innerHTML = '<p>Deteksi dimulai. Tunjukkan bahasa isyarat ke kamera.</p>';
+            
+            // Hentikan interval sebelumnya jika ada
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            
+            // Deteksi setiap 1 detik
+            detectionInterval = setInterval(async () => {
+                try {
+                    const predictions = await model.classify(video);
+                    
+                    if (predictions && predictions.length > 0) {
+                        // Ambil prediksi dengan confidence tertinggi
+                        const topPrediction = predictions[0];
+                        lastDetection = topPrediction;
+                        
+                        // Update tampilan
+                        predictedLetter.textContent = topPrediction.class;
+                        confidence.textContent = `Akurasi: ${(topPrediction.confidence * 100).toFixed(1)}%`;
+                    }
+                } catch (error) {
+                    console.error("Detection error:", error);
+                    confidence.textContent = `Error: ${error.message}`;
+                }
+            }, 1000);
+        }
+        
+        // Menghentikan deteksi dan kamera
+        function stopDetection() {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                video.srcObject = null;
+            }
+            
+            predictedLetter.textContent = '-';
+            confidence.textContent = 'Deteksi dihentikan';
+            addBtn.disabled = true;
+            detectBtn.disabled = true;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusDiv.innerHTML = '<p>Deteksi dihentikan. Klik "Mulai Kamera" untuk memulai lagi.</p>';
+        }
+        
+        // Menambahkan huruf ke kata
+        function addLetter() {
+            if (!lastDetection) {
+                return;
+            }
+            
+            // Hanya tambahkan jika confidence > 50%
+            if (lastDetection.confidence > 0.5) {
+                currentWord += lastDetection.class;
+                updateWordDisplay();
+            } else {
+                statusDiv.innerHTML = '<p>Akurasi terlalu rendah. Silakan coba lagi.</p>';
+            }
+        }
+        
+        // Menambahkan spasi
+        function addSpace() {
+            currentWord += ' ';
+            updateWordDisplay();
+        }
+        
+        // Menghapus karakter terakhir
+        function deleteLast() {
+            if (currentWord.length > 0) {
+                currentWord = currentWord.slice(0, -1);
+                updateWordDisplay();
+            }
+        }
+        
+        // Mereset kata
+        function resetWord() {
+            currentWord = '';
+            updateWordDisplay();
+        }
+        
+        // Memperbarui tampilan kata
+        function updateWordDisplay() {
+            wordDisplay.textContent = currentWord;
+        }
+        
+        // Event Listeners
+        startBtn.addEventListener('click', startCamera);
+        detectBtn.addEventListener('click', startDetection);
+        stopBtn.addEventListener('click', stopDetection);
+        addBtn.addEventListener('click', addLetter);
+        spaceBtn.addEventListener('click', addSpace);
+        delBtn.addEventListener('click', deleteLast);
+        resetBtn.addEventListener('click', resetWord);
+        
+        // Inisialisasi model saat halaman dimuat
+        window.addEventListener('load', initializeModel);
+        
+        // Membersihkan saat halaman ditutup
+        window.addEventListener('beforeunload', () => {
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+            }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
