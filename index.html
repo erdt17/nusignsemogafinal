@@ -4,9 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Penerjemah Bahasa Isyarat BISINDO</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@roboflowai/roboflow-js@0.1.2/dist/roboflow-0.1.2.min.js"></script>
+    <script src="https://cdn.roboflow.com/0.2.28/roboflow-sdk.min.js"></script>
     <style>
+        :root {
+            --primary: #4facfe;
+            --secondary: #00f2fe;
+            --danger: #ff416c;
+            --warning: #ff4b2b;
+            --success: #51cf66;
+            --dark: #1a2a6c;
+            --accent: #8e2de2;
+        }
+        
         * {
             box-sizing: border-box;
             margin: 0;
@@ -15,10 +24,11 @@
         }
         
         body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            background: linear-gradient(135deg, var(--dark), #b21f1f, #fdbb2d);
             color: white;
             min-height: 100vh;
             padding: 20px;
+            line-height: 1.6;
         }
         
         .container {
@@ -30,16 +40,31 @@
         header {
             text-align: center;
             margin-bottom: 30px;
-            padding: 20px;
+            padding: 30px;
             background: rgba(0, 0, 0, 0.4);
             border-radius: 15px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
         }
         
         h1 {
-            font-size: 2.5rem;
+            font-size: 2.8rem;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         
         .subtitle {
@@ -61,7 +86,7 @@
             min-width: 300px;
             background: rgba(0, 0, 0, 0.4);
             border-radius: 15px;
-            padding: 20px;
+            padding: 25px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
         
@@ -70,36 +95,41 @@
             min-width: 300px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 25px;
         }
         
         .prediction-box, .word-builder {
             background: rgba(0, 0, 0, 0.4);
             border-radius: 15px;
-            padding: 20px;
+            padding: 25px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
         
         .section-title {
-            font-size: 1.5rem;
-            margin-bottom: 15px;
+            font-size: 1.6rem;
+            margin-bottom: 20px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
         }
         
         .section-title i {
-            font-size: 1.8rem;
+            font-size: 2rem;
+            color: var(--secondary);
         }
         
         .video-container {
             position: relative;
             width: 100%;
             height: 0;
-            padding-bottom: 75%; /* 4:3 aspect ratio */
+            padding-bottom: 75%;
             background: #000;
             border-radius: 10px;
             overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
         
         #video {
@@ -109,7 +139,7 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Mirror the video */
+            transform: scaleX(-1);
         }
         
         .controls {
@@ -121,16 +151,21 @@
         
         button {
             flex: 1;
-            min-width: 120px;
-            padding: 12px 20px;
+            min-width: 140px;
+            padding: 14px 24px;
             border: none;
             border-radius: 50px;
-            background: linear-gradient(to right, #4facfe, #00f2fe);
+            background: linear-gradient(to right, var(--primary), var(--secondary));
             color: white;
             font-weight: bold;
+            font-size: 1rem;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
         button:hover {
@@ -143,18 +178,19 @@
         }
         
         button:disabled {
-            background: #cccccc;
+            background: #555;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+            opacity: 0.7;
         }
         
         #stopBtn {
-            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            background: linear-gradient(to right, var(--danger), var(--warning));
         }
         
         #resetBtn {
-            background: linear-gradient(to right, #8e2de2, #4a00e0);
+            background: linear-gradient(to right, var(--accent), #4a00e0);
         }
         
         .prediction-result {
@@ -162,63 +198,77 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 200px;
+            height: 250px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
         }
         
         .letter {
-            font-size: 8rem;
+            font-size: 9rem;
             font-weight: bold;
-            text-shadow: 0 0 20px rgba(255, 255, 255, 0.7);
-            margin-bottom: 10px;
+            text-shadow: 0 0 25px rgba(255, 255, 255, 0.8);
+            margin-bottom: 15px;
+            background: linear-gradient(to bottom, #ffffff, #a0d8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
         }
         
         .confidence {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             opacity: 0.9;
         }
         
         .word-display {
-            font-size: 3rem;
+            font-size: 3.2rem;
             text-align: center;
-            min-height: 80px;
-            padding: 15px;
+            min-height: 100px;
+            padding: 20px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
-            margin: 15px 0;
+            margin: 20px 0;
             overflow-wrap: break-word;
+            letter-spacing: 3px;
+            font-weight: bold;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3);
         }
         
         .word-controls {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 12px;
         }
         
         .word-controls button {
             min-width: auto;
+            padding: 12px;
+            font-size: 0.95rem;
         }
         
         .status {
             text-align: center;
-            padding: 15px;
+            padding: 20px;
             background: rgba(0, 0, 0, 0.4);
             border-radius: 10px;
             margin-top: 20px;
+            font-size: 1.1rem;
         }
         
         .loading {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
+            gap: 15px;
         }
         
         .spinner {
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             border: 4px solid rgba(255, 255, 255, 0.3);
             border-radius: 50%;
-            border-top-color: white;
+            border-top-color: var(--secondary);
             animation: spin 1s linear infinite;
         }
         
@@ -229,48 +279,77 @@
         .instructions {
             background: rgba(0, 0, 0, 0.4);
             border-radius: 15px;
-            padding: 25px;
+            padding: 30px;
             margin-top: 30px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
         
         .instructions h2 {
-            margin-bottom: 15px;
-            font-size: 1.8rem;
+            margin-bottom: 20px;
+            font-size: 1.9rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         
         .steps {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
-            margin-top: 15px;
+            margin-top: 20px;
         }
         
         .step {
-            flex: 1;
-            min-width: 250px;
             background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
+            padding: 25px;
             border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .step:hover {
+            transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.15);
         }
         
         .step-number {
             display: inline-block;
-            width: 30px;
-            height: 30px;
-            background: linear-gradient(to right, #4facfe, #00f2fe);
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
             border-radius: 50%;
             text-align: center;
-            line-height: 30px;
+            line-height: 36px;
             font-weight: bold;
-            margin-right: 10px;
+            font-size: 1.2rem;
+            margin-right: 12px;
+            margin-bottom: 15px;
         }
         
         footer {
             text-align: center;
-            margin-top: 30px;
-            padding: 20px;
+            margin-top: 40px;
+            padding: 25px;
             opacity: 0.8;
+            font-size: 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 15px;
+        }
+        
+        .error {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .success {
+            color: var(--success);
+        }
+        
+        .vercel-badge {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
             font-size: 0.9rem;
         }
         
@@ -286,6 +365,41 @@
             .word-controls button:last-child {
                 grid-column: span 2;
             }
+            
+            .letter {
+                font-size: 7rem;
+            }
+            
+            .word-display {
+                font-size: 2.6rem;
+            }
+            
+            h1 {
+                font-size: 2.3rem;
+            }
+            
+            .section-title {
+                font-size: 1.4rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            button {
+                min-width: 100%;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .letter {
+                font-size: 5rem;
+            }
+            
+            .word-display {
+                font-size: 2.2rem;
+                min-height: 80px;
+            }
         }
     </style>
 </head>
@@ -294,6 +408,7 @@
         <header>
             <h1>Penerjemah Bahasa Isyarat BISINDO</h1>
             <p class="subtitle">Aplikasi real-time untuk menerjemahkan bahasa isyarat alfabet BISINDO menjadi teks menggunakan teknologi AI</p>
+            <div class="vercel-badge">🚀 Hosted on Vercel</div>
         </header>
         
         <div class="content">
@@ -305,9 +420,15 @@
                     <video id="video" autoplay playsinline></video>
                 </div>
                 <div class="controls">
-                    <button id="startBtn">Mulai Kamera</button>
-                    <button id="detectBtn" disabled>Mulai Deteksi</button>
-                    <button id="stopBtn" disabled>Hentikan</button>
+                    <button id="startBtn">
+                        <i>▶️</i> Mulai Kamera
+                    </button>
+                    <button id="detectBtn" disabled>
+                        <i>🔍</i> Mulai Deteksi
+                    </button>
+                    <button id="stopBtn" disabled>
+                        <i>⏹️</i> Hentikan
+                    </button>
                 </div>
             </div>
             
@@ -328,10 +449,18 @@
                     </h2>
                     <div class="word-display" id="wordDisplay"></div>
                     <div class="word-controls">
-                        <button id="addBtn" disabled>Tambahkan Huruf</button>
-                        <button id="spaceBtn">Spasi</button>
-                        <button id="delBtn">Hapus</button>
-                        <button id="resetBtn">Reset Kata</button>
+                        <button id="addBtn" disabled>
+                            <i>➕</i> Tambahkan Huruf
+                        </button>
+                        <button id="spaceBtn">
+                            <i>␣</i> Spasi
+                        </button>
+                        <button id="delBtn">
+                            <i>❌</i> Hapus
+                        </button>
+                        <button id="resetBtn">
+                            <i>🔄</i> Reset Kata
+                        </button>
                     </div>
                 </div>
             </div>
@@ -363,7 +492,8 @@
         </div>
         
         <footer>
-            <p>Aplikasi Penerjemah Bahasa Isyarat BISINDO &copy; 2023 | Menggunakan model AI dari Roboflow</p>
+            <p>Aplikasi Penerjemah Bahasa Isyarat BISINDO &copy; 2023</p>
+            <p>Menggunakan model AI dari Roboflow | Hosted on Vercel</p>
         </footer>
     </div>
 
@@ -388,29 +518,37 @@
         let detectionInterval = null;
         let currentWord = '';
         let lastDetection = null;
+        let rf = null; // Roboflow instance
         
-        // Inisialisasi Roboflow
+        // Inisialisasi Roboflow dengan API key Anda
         async function initializeModel() {
             statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Memuat model AI...</div>';
             
             try {
-                // Ganti dengan publishable key Anda dari Roboflow
+                // Pastikan Roboflow SDK sudah dimuat
+                if (typeof Roboflow === 'undefined') {
+                    throw new Error('Roboflow SDK gagal dimuat');
+                }
+                
+                // Gunakan publishable key Anda
                 const publishableKey = "rf_uO2Vrih134XXsdwZEmUWBXMsfyn1";
                 
-                roboflow.auth({
+                // Inisialisasi Roboflow
+                rf = new Roboflow({
                     publishable_key: publishableKey
                 });
                 
-                model = await roboflow.models.load({
+                // Muat model
+                model = await rf.models.load({
                     model: "alfabet-bisindo-vr1x3",
                     version: 2
                 });
                 
-                statusDiv.innerHTML = '<p>Model AI berhasil dimuat! Silakan mulai kamera.</p>';
+                statusDiv.innerHTML = '<p class="success">✅ Model AI berhasil dimuat! Silakan mulai kamera.</p>';
                 console.log("Model loaded successfully");
             } catch (error) {
                 console.error("Error loading model:", error);
-                statusDiv.innerHTML = `<p class="error">Gagal memuat model: ${error.message}</p>`;
+                statusDiv.innerHTML = `<p class="error">❌ Gagal memuat model: ${error.message}</p>`;
             }
         }
         
@@ -429,27 +567,27 @@
                 });
                 
                 video.srcObject = stream;
-                statusDiv.innerHTML = '<p>Kamera berhasil diaktifkan! Klik "Mulai Deteksi" untuk memulai.</p>';
+                statusDiv.innerHTML = '<p class="success">✅ Kamera berhasil diaktifkan! Klik "Mulai Deteksi" untuk memulai.</p>';
                 
                 startBtn.disabled = true;
                 detectBtn.disabled = false;
                 stopBtn.disabled = false;
             } catch (error) {
                 console.error("Error accessing camera:", error);
-                statusDiv.innerHTML = `<p class="error">Gagal mengakses kamera: ${error.message}</p>`;
+                statusDiv.innerHTML = `<p class="error">❌ Gagal mengakses kamera: ${error.message}</p>`;
             }
         }
         
         // Memulai deteksi
         function startDetection() {
             if (!model) {
-                statusDiv.innerHTML = '<p class="error">Model belum dimuat. Silakan tunggu atau muat ulang halaman.</p>';
+                statusDiv.innerHTML = '<p class="error">❌ Model belum dimuat. Silakan tunggu atau muat ulang halaman.</p>';
                 return;
             }
             
             detectBtn.disabled = true;
             addBtn.disabled = false;
-            statusDiv.innerHTML = '<p>Deteksi dimulai. Tunjukkan bahasa isyarat ke kamera.</p>';
+            statusDiv.innerHTML = '<p>🔍 Deteksi dimulai. Tunjukkan bahasa isyarat ke kamera.</p>';
             
             // Hentikan interval sebelumnya jika ada
             if (detectionInterval) {
@@ -469,6 +607,9 @@
                         // Update tampilan
                         predictedLetter.textContent = topPrediction.class;
                         confidence.textContent = `Akurasi: ${(topPrediction.confidence * 100).toFixed(1)}%`;
+                    } else {
+                        predictedLetter.textContent = '-';
+                        confidence.textContent = 'Tidak ada deteksi';
                     }
                 } catch (error) {
                     console.error("Detection error:", error);
@@ -496,12 +637,13 @@
             detectBtn.disabled = true;
             startBtn.disabled = false;
             stopBtn.disabled = true;
-            statusDiv.innerHTML = '<p>Deteksi dihentikan. Klik "Mulai Kamera" untuk memulai lagi.</p>';
+            statusDiv.innerHTML = '<p>⏹️ Deteksi dihentikan. Klik "Mulai Kamera" untuk memulai lagi.</p>';
         }
         
         // Menambahkan huruf ke kata
         function addLetter() {
             if (!lastDetection) {
+                statusDiv.innerHTML = '<p class="error">❌ Belum ada deteksi. Silakan tunjukkan bahasa isyarat.</p>';
                 return;
             }
             
@@ -509,8 +651,9 @@
             if (lastDetection.confidence > 0.5) {
                 currentWord += lastDetection.class;
                 updateWordDisplay();
+                statusDiv.innerHTML = `<p class="success">✅ Huruf "${lastDetection.class}" berhasil ditambahkan!</p>`;
             } else {
-                statusDiv.innerHTML = '<p>Akurasi terlalu rendah. Silakan coba lagi.</p>';
+                statusDiv.innerHTML = '<p class="error">❌ Akurasi terlalu rendah. Silakan coba lagi.</p>';
             }
         }
         
@@ -518,6 +661,7 @@
         function addSpace() {
             currentWord += ' ';
             updateWordDisplay();
+            statusDiv.innerHTML = '<p class="success">✅ Spasi berhasil ditambahkan!</p>';
         }
         
         // Menghapus karakter terakhir
@@ -525,6 +669,9 @@
             if (currentWord.length > 0) {
                 currentWord = currentWord.slice(0, -1);
                 updateWordDisplay();
+                statusDiv.innerHTML = '<p class="success">✅ Karakter terakhir dihapus!</p>';
+            } else {
+                statusDiv.innerHTML = '<p class="error">❌ Tidak ada karakter untuk dihapus.</p>';
             }
         }
         
@@ -532,6 +679,7 @@
         function resetWord() {
             currentWord = '';
             updateWordDisplay();
+            statusDiv.innerHTML = '<p class="success">✅ Kata berhasil direset!</p>';
         }
         
         // Memperbarui tampilan kata
